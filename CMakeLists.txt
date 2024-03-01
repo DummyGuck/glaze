@@ -8,12 +8,13 @@ project(
     LANGUAGES CXX
 )
 
+set(PROJECT_IS_TOP_LEVEL)
+
 include(cmake/project-is-top-level.cmake)
 include(cmake/variables.cmake)
 
 add_library(glaze_glaze INTERFACE)
 add_library(glaze::glaze ALIAS glaze_glaze)
-
 
 if (MSVC)
   string(REGEX MATCH "\/cl(.exe)?$" matched_cl ${CMAKE_CXX_COMPILER})
@@ -41,6 +42,13 @@ target_include_directories(
     glaze_glaze ${warning_guard}
     INTERFACE "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
 )
+
+find_package(Qt5 COMPONENTS Core)
+
+if (Qt5_FOUND)
+  target_compile_definitions(glaze_glaze INTERFACE HAVE_QT=1)
+  target_link_libraries(glaze_glaze INTERFACE Qt5::Core)
+endif()
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)
   include(cmake/install-rules.cmake)
