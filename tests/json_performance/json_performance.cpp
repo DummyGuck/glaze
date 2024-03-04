@@ -21,7 +21,7 @@
    #include <QList>
 #endif
 
-static constexpr int objectListSize = 3;
+static constexpr int objectListSize = 300000;
 
 static constexpr std::string_view json0 = R"(
 {
@@ -130,19 +130,20 @@ struct another_object_variant2_t : public another_object_t
 struct obj_t : QObject
 {
    friend class glz::meta<obj_t>;
-   fixed_object_t fixed_object{};
-   std::shared_ptr<fixed_name_object_t> fixed_name_object;
+   //fixed_object_t fixed_object{};
+   //std::shared_ptr<fixed_name_object_t> fixed_name_object;
    QMap<int, another_object_t> qmap{};
-   const std::string string{};
-   std::string qString{};
-   double number{};
-   bool boolean{};
-   bool another_bool{};
+   //const std::string string{};
+   //QString qString{};
+   //double number{};
+   //bool boolean{};
+   //bool another_bool{};
 
 public:
    obj_t() = default;
    void init (int i) {
-      fixed_name_object = std::make_shared<fixed_name_object_t>();
+      
+      //fixed_name_object = std::make_shared<fixed_name_object_t>();
       for(int j = 0; j < i; ++j) {
          qmap.insert(j,another_object_variant1_t{});
       }
@@ -150,8 +151,14 @@ public:
       for(int j = 0; j < i; ++j) {
          qmap.insert((i + j), another_object_variant2_t{});
       }
-   }
+      /*
+      for(int i = 0; i < objectListSize; ++i) {
+         qString.push_back("This is a QString plea\"se work\nyeeeah"); 
+      } 
 
+      */
+   }
+/*
    void printQMap() {
       std::cout << "QMap: ";
       for(auto p : qmap.keys()) {
@@ -163,7 +170,7 @@ public:
    QMap<int, another_object_t>& map() {
       return qmap;
    }
-
+*/
 
    template<class obj_t, class Buffer>
    friend auto write_binary(obj_t&&, Buffer&&);
@@ -183,33 +190,34 @@ template<>
 struct glz::meta<obj_t> {
    using T = obj_t;
    static constexpr auto value = object(
-      &T::fixed_object,
-      &T::fixed_name_object,
-      &T::qmap,
-      &T::string,
-      &T::qString,
-      &T::number,
-      &T::boolean,
-      &T::another_bool
+      //&T::fixed_object,
+      //&T::fixed_name_object,
+      &T::qmap
+      //&T::string,
+      //&T::qString,
+      //&T::number,
+      //&T::boolean,
+      //&T::another_bool
    );
 };
 
-class obj_t_std
+struct obj_t_std
 {
    friend class glz::meta<obj_t_std>;
-   fixed_object_t fixed_object{};
-   std::shared_ptr<fixed_name_object_t> fixed_name_object;
+   //fixed_object_t fixed_object{};
+   //std::shared_ptr<fixed_name_object_t> fixed_name_object;
    std::map<int, another_object_t> qmap{};
-   const std::string string{};
-   std::string qString{};
-   double number{};
-   bool boolean{};
-   bool another_bool{};
+   //const std::string string{};
+   //std::string qString{};
+   //double number{};
+   //bool boolean{};
+   //bool another_bool{};
 
 public:
    obj_t_std() = default;
    void init (int i) {
-      fixed_name_object = std::make_shared<fixed_name_object_t>();
+      
+      //fixed_name_object = std::make_shared<fixed_name_object_t>();
       for(int j = 0; j < i; ++j) {
          qmap.insert({j,another_object_variant1_t{}});
       }
@@ -217,6 +225,11 @@ public:
       for(int j = 0; j < i; ++j) {
          qmap.insert({(i + j), another_object_variant2_t{}});
       }
+      /*
+      for(int i = 0; i < objectListSize; ++i) {
+         qString.append("This is a QString plea\"se work\nyeeeah"); 
+      } 
+      */
    }
 /*
    void printQMap() {
@@ -251,14 +264,14 @@ template<>
 struct glz::meta<obj_t_std> {
    using T = obj_t_std;
    static constexpr auto value = object(
-      &T::fixed_object,
-      &T::fixed_name_object,
-      &T::qmap,
-      &T::string,
-      &T::qString,
-      &T::number,
-      &T::boolean,
-      &T::another_bool
+      //&T::fixed_object,
+      //&T::fixed_name_object,
+      &T::qmap
+      //&T::string,
+      //&T::qString,
+      //&T::number,
+      //&T::boolean,
+      //&T::another_bool
    );
 };
 
@@ -460,25 +473,32 @@ inline bool is_valid_write(const std::string& buffer, const std::string& library
 static obj_t obj{};
 static obj_t_std obj_std{};
 
-auto glaze_test_1()
+auto glaze_test_qt_binary()
 {
    std::string buffer{};
    obj_t other{};
 
-   QString asd = "asd";
-   if(qstring_type<decltype(asd)>){
-      std::cout << "IS QSTRING"<< std::endl;
-   }
-   else {
-      std::cout << "OR IS?" << std::endl;
-   }
+   auto t0 = std::chrono::steady_clock::now();
 
-   if(glz::detail::writable_array_t<decltype(asd)>){
-      std::cout << "IS ARRAY"<< std::endl;
-   }
-   else {
-      std::cout << "OR IS?" << std::endl;
-   }
+   glz::write_binary(obj, buffer);
+   auto error = glz::read_binary(other, buffer);
+
+   //std::cout << "glaze error: " << error << std::endl;
+   
+   auto t1 = std::chrono::steady_clock::now();
+   
+   results r{ "Glaze Qt binary", "https://github.com/stephenberry/glaze", iterations };
+   r.json_roundtrip = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() * 1e-6;
+
+   std::cout << "buffer size: " << buffer.size() <<std::endl;
+   //std::cout << "string" <<other.qString.toStdString() << std::endl;
+   return r;
+}
+
+auto glaze_test_qt_json()
+{
+   std::string buffer{};
+   obj_t other{};
 
    auto t0 = std::chrono::steady_clock::now();
 
@@ -489,14 +509,37 @@ auto glaze_test_1()
    
    auto t1 = std::chrono::steady_clock::now();
    
-   results r{ "Glaze Qt", "https://github.com/stephenberry/glaze", iterations };
+   results r{ "Glaze Qt json", "https://github.com/stephenberry/glaze", iterations };
    r.json_roundtrip = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() * 1e-6;
 
-   //std::cout <<buffer <<std::endl;
+   std::cout << "buffer size: " << buffer.size() <<std::endl;
+   //std::cout << "string" <<other.qString.toStdString() << std::endl;
    return r;
 }
 
-auto glaze_test_2()
+auto glaze_test_std_binary()
+{
+   std::string buffer{};
+
+   obj_t_std other{};
+   auto t0 = std::chrono::steady_clock::now();
+
+   glz::write_binary(obj_std, buffer);
+   auto error = glz::read_binary(other, buffer);
+   
+   //std::cout << "glaze error: " << error << std::endl;
+   
+   auto t1 = std::chrono::steady_clock::now();
+   
+   results r{ "Glaze std binary", "https://github.com/stephenberry/glaze", iterations };
+   r.json_roundtrip = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() * 1e-6;
+
+   //std::cout << buffer <<std::endl;
+   //std::cout <<"string: " << other.qString << std::endl;
+   return r;
+}
+
+auto glaze_test_std_json()
 {
    std::string buffer{};
 
@@ -510,10 +553,11 @@ auto glaze_test_2()
    
    auto t1 = std::chrono::steady_clock::now();
    
-   results r{ "Glaze std", "https://github.com/stephenberry/glaze", iterations };
+   results r{ "Glaze std json", "https://github.com/stephenberry/glaze", iterations };
    r.json_roundtrip = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() * 1e-6;
 
-   //std::cout <<buffer <<std::endl;
+   //std::cout << buffer <<std::endl;
+   //std::cout <<"string: " << other.qString << std::endl;
    return r;
 }
 
@@ -521,11 +565,17 @@ auto glaze_test_2()
 void test0()
 {
    std::vector<results> results;
-   //for(int i = 0; i < 5; ++i)
-      results.emplace_back(glaze_test_1());
+   //for(int i = 0; i < 10; ++i)
+      results.emplace_back(glaze_test_qt_binary());
    
-   //for(int i = 0; i < 5; ++i)
-      results.emplace_back(glaze_test_2());
+   //for(int i = 0; i < 10; ++i)
+      results.emplace_back(glaze_test_qt_json());
+
+   //for(int i = 0; i < 10; ++i)
+      results.emplace_back(glaze_test_std_binary());
+
+   //for(int i = 0; i < 10; ++i)
+      results.emplace_back(glaze_test_std_json());
 
    for (auto r : results) {
       r.print();

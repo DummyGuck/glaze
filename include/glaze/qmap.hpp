@@ -126,11 +126,43 @@ namespace glz::detail {
         requires qmap_type<T>
     struct from_binary<T> {
         template <glz::opts Opts, class... Args>
-        GLZ_ALWAYS_INLINE static void op(auto& value, is_context auto&& ctx, Args&&... args) noexcept
+        GLZ_ALWAYS_INLINE static void op(auto& value, is_context auto&& ctx, auto&& it, auto&& end) noexcept
         {
+            /*
             std::map<typename T::key_type, typename T::mapped_type> map;
             read<Opts.format>::template op<Opts>(map, ctx, args...);
             value = QMap<typename T::key_type, typename T::mapped_type>{std::move(map)};
+            */
+            using Key = typename T::key_type;
+
+            constexpr uint8_t type = str_t<Key> ? 0 : (std::is_signed_v<Key> ? 0b000'01'000 : 0b000'10'000);
+            constexpr uint8_t byte_cnt = str_t<Key> ? 0 : byte_count<Key>;
+            constexpr uint8_t header = tag::object | type | (byte_cnt << 5);
+
+            const auto tag = uint8_t(*it);
+            if (tag != header) [[unlikely]] {
+                ctx.error = error_code::syntax_error;
+                return;
+            }
+
+            ++it;
+
+            const auto n = int_from_compressed(it, end);
+
+            if constexpr (std::is_arithmetic_v<std::decay_t<Key>>) {
+                Key key;
+                for (size_t i = 0; i < n; ++i) {
+                    read<binary>::op<opt_true<Opts, &opts::no_header>>(key, ctx, it, end);
+                    read<binary>::op<Opts>(value[key], ctx, it, end);
+                }
+            }
+            else {
+                static thread_local Key key;
+                for (size_t i = 0; i < n; ++i) {
+                    read<binary>::op<opt_true<Opts, &opts::no_header>>(key, ctx, it, end);
+                    read<binary>::op<Opts>(value[key], ctx, it, end);
+                }
+            }
         }
     };
 }
