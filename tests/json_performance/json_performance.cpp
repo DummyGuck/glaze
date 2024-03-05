@@ -2,8 +2,9 @@
 #include "glaze/glaze_exceptions.hpp"
 #include "glaze/core/macros.hpp"
 #include "glaze/api/impl.hpp"
-#include "glaze/qmap.hpp"
-#include "glaze/qstring.hpp"
+#include "glaze/api/qt/qmap.hpp"
+#include "glaze/api/qt/qstring.hpp"
+#include "glaze/api/qt/qdatetime.hpp"
 
 #include <memory>
 #include <chrono>
@@ -19,9 +20,10 @@
    //#include <QMap>
    #include <QSet>
    #include <QList>
+   #include <QDateTime>
 #endif
 
-static constexpr int objectListSize = 300000;
+static constexpr int objectListSize = 3;
 
 static constexpr std::string_view json0 = R"(
 {
@@ -127,6 +129,14 @@ struct another_object_variant2_t : public another_object_t
    };
 };
 
+enum class TestEnum {
+   Red,
+   Blue,
+   Yellow,
+   White,
+   Black
+};
+
 struct obj_t : QObject
 {
    friend class glz::meta<obj_t>;
@@ -138,6 +148,11 @@ struct obj_t : QObject
    //double number{};
    //bool boolean{};
    //bool another_bool{};
+   QList<int> list{1, 3, 4, 5, 1};
+   QPair<int, int> p{3, 4};
+   QDateTime datetime{QDate{1996, 8, 24}, QTime{23, 44, 55}};
+   QDate date{datetime.date()};
+   QTime time{datetime.time() };
 
 public:
    obj_t() = default;
@@ -157,8 +172,8 @@ public:
       } 
 
       */
+      //e = TestEnum::Blue;
    }
-/*
    void printQMap() {
       std::cout << "QMap: ";
       for(auto p : qmap.keys()) {
@@ -170,7 +185,18 @@ public:
    QMap<int, another_object_t>& map() {
       return qmap;
    }
-*/
+
+   void printList() {
+      std::cout << "QList: ";
+      for(auto i : list) {
+         std::cout << i;
+      }
+      std::cout << std::endl;
+   }
+
+   void printPair() {
+      std::cout << "QPair: " << p.first << ", " << p.second << std::endl;
+   }
 
    template<class obj_t, class Buffer>
    friend auto write_binary(obj_t&&, Buffer&&);
@@ -192,12 +218,17 @@ struct glz::meta<obj_t> {
    static constexpr auto value = object(
       //&T::fixed_object,
       //&T::fixed_name_object,
-      &T::qmap
+      &T::qmap,
       //&T::string,
       //&T::qString,
       //&T::number,
       //&T::boolean,
       //&T::another_bool
+      &T::list,
+      &T::p,
+      &T::datetime,
+      &T::date,
+      &T::time
    );
 };
 
@@ -212,6 +243,7 @@ struct obj_t_std
    //double number{};
    //bool boolean{};
    //bool another_bool{};
+   TestEnum e;
 
 public:
    obj_t_std() = default;
@@ -230,6 +262,7 @@ public:
          qString.append("This is a QString plea\"se work\nyeeeah"); 
       } 
       */
+      e = TestEnum::White;
    }
 /*
    void printQMap() {
@@ -266,12 +299,13 @@ struct glz::meta<obj_t_std> {
    static constexpr auto value = object(
       //&T::fixed_object,
       //&T::fixed_name_object,
-      &T::qmap
+      &T::qmap,
       //&T::string,
       //&T::qString,
       //&T::number,
       //&T::boolean,
       //&T::another_bool
+      &T::e
    );
 };
 
@@ -383,7 +417,7 @@ struct results
    void print(bool use_minified = true)
    {
       if (json_roundtrip) {
-         std::cout << name << " json roundtrip: " << *json_roundtrip << " s\n";
+         std::cout << name << " roundtrip: " << *json_roundtrip << " s\n";
       }
       
       if (json_byte_length) {
@@ -490,7 +524,7 @@ auto glaze_test_qt_binary()
    results r{ "Glaze Qt binary", "https://github.com/stephenberry/glaze", iterations };
    r.json_roundtrip = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() * 1e-6;
 
-   std::cout << "buffer size: " << buffer.size() <<std::endl;
+   //std::cout << "buffer size: " << buffer.size() <<std::endl;
    //std::cout << "string" <<other.qString.toStdString() << std::endl;
    return r;
 }
@@ -508,12 +542,21 @@ auto glaze_test_qt_json()
    //std::cout << "glaze error: " << error << std::endl;
    
    auto t1 = std::chrono::steady_clock::now();
+
+   if(qdate_type<decltype(obj.date)>) {
+      std::cout << "It's a date" <<std::endl;
+   }
    
    results r{ "Glaze Qt json", "https://github.com/stephenberry/glaze", iterations };
    r.json_roundtrip = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count() * 1e-6;
 
-   std::cout << "buffer size: " << buffer.size() <<std::endl;
-   //std::cout << "string" <<other.qString.toStdString() << std::endl;
+   std::cout << "buffer " << buffer <<std::endl;
+   std::cout << "date" <<other.date.toString().toStdString() << std::endl;
+   std::cout << "time" <<other.time.toString().toStdString() << std::endl;
+   std::cout << "datetime" <<other.datetime.toString().toStdString() << std::endl;
+   
+   other.printList();
+   other.printPair();
    return r;
 }
 
@@ -566,16 +609,16 @@ void test0()
 {
    std::vector<results> results;
    //for(int i = 0; i < 10; ++i)
-      results.emplace_back(glaze_test_qt_binary());
+      //results.emplace_back(glaze_test_qt_binary());
    
    //for(int i = 0; i < 10; ++i)
       results.emplace_back(glaze_test_qt_json());
 
    //for(int i = 0; i < 10; ++i)
-      results.emplace_back(glaze_test_std_binary());
+      //results.emplace_back(glaze_test_std_binary());
 
    //for(int i = 0; i < 10; ++i)
-      results.emplace_back(glaze_test_std_json());
+      //results.emplace_back(glaze_test_std_json());
 
    for (auto r : results) {
       r.print();
